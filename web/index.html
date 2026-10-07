@@ -1,12 +1,207 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
-    <title>JSNES: A JavaScript NES emulator</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/index.jsx"></script>
-  </body>
+html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>NES NFC Player</title>
+    <style>
+        /* Estilos generales */
+        body {
+            margin: 0;
+            padding: 0;
+            background: #111;
+            color: white;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Contenedor del emulador */
+        #emulator-container {
+            width: 100%;
+            max-width: 512px;
+            aspect-ratio: 256/240;
+            background: black;
+            position: relative;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated;
+        }
+
+        /* Panel de Controles Táctiles */
+        #controls {
+            width: 100%;
+            max-width: 512px;
+            height: 180px;
+            position: relative;
+            background: #222;
+            border-top: 4px solid #444;
+        }
+
+        .btn {
+            position: absolute;
+            background: #444;
+            border: 2px solid #666;
+            border-radius: 50%;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+            touch-action: none;
+        }
+
+        .btn:active {
+            background: #ff3333;
+            transform: scale(0.95);
+        }
+
+        /* Cruceta Direccional */
+        #dpad {
+            position: absolute;
+            left: 20px;
+            top: 30px;
+            width: 120px;
+            height: 120px;
+        }
+
+        .dbtn {
+            position: absolute;
+            background: #333;
+            border: 1px solid #555;
+            touch-action: none;
+        }
+        .dbtn:active { background: #555; }
+
+        #btn-up { top: 0; left: 40px; width: 40px; height: 40px; border-radius: 5px 5px 0 0; }
+        #btn-down { bottom: 0; left: 40px; width: 40px; height: 40px; border-radius: 0 0 5px 5px; }
+        #btn-left { top: 40px; left: 0; width: 40px; height: 40px; border-radius: 5px 0 0 5px; }
+        #btn-right { top: 40px; right: 0; width: 40px; height: 40px; border-radius: 0 5px 5px 0; }
+
+        /* Botones de Acción A y B */
+        #btn-b { right: 80px; top: 45px; width: 50px; height: 50px; background: #aa2222; }
+        #btn-a { right: 20px; top: 45px; width: 50px; height: 50px; background: #aa2222; }
+
+        /* Botones Select y Start */
+        .sys-btn {
+            width: 50px;
+            height: 15px;
+            background: #555;
+            border-radius: 5px;
+            font-size: 10px;
+            top: 135px;
+        }
+        #btn-select { left: 40%; }
+        #btn-start { right: 40%; }
+    </style>
+    <!-- Cargamos la librería oficial de JSNES desde un servidor rápido -->
+    <script src="https://unpkg.com"></script>
+</head>
+<body>
+
+    <div id="emulator-container">
+        <canvas id="nes-canvas" width="256" height="240"></canvas>
+    </div>
+
+    <div id="controls">
+        <!-- D-Pad -->
+        <div id="dpad">
+            <div id="btn-up" class="dbtn"></div>
+            <div id="btn-down" class="dbtn"></div>
+            <div id="btn-left" class="dbtn"></div>
+            <div id="btn-right" class="dbtn"></div>
+        </div>
+        
+        <!-- Botones A y B -->
+        <div id="btn-b" class="btn">B</div>
+        <div id="btn-a" class="btn">A</div>
+
+        <!-- Select y Start -->
+        <div id="btn-select" class="btn sys-btn">SELECT</div>
+        <div id="btn-start" class="btn sys-btn">START</div>
+    </div>
+
+    <script>
+        // Cambia 'juego.nes' por el nombre exacto de tu archivo ROM si es diferente
+        const ROM_FILE = 'mario3.nes'; 
+
+        const canvas = document.getElementById('nes-canvas');
+        const ctx = canvas.getContext('2d');
+        let imageData = ctx.createImageData(256, 240);
+
+        // Inicializar el emulador de JSNES
+        const nes = new jsnes.NES({
+            onFrame: function(buffer) {
+                let i = 0;
+                for (let y = 0; y < 240; ++y) {
+                    for (let x = 0; x < 256; ++x) {
+                        const pixel = buffer[y * 256 + x];
+                        imageData.data[i++] = pixel & 0xFF;
+                        imageData.data[i++] = (pixel >> 8) & 0xFF;
+                        imageData.data[i++] = (pixel >> 16) & 0xFF;
+                        imageData.data[i++] = 0xFF;
+                    }
+                }
+                ctx.putImageData(imageData, 0, 0);
+            },
+            onAudioSample: function(left, right) {
+                // Audio simplificado (desactivado por defecto para evitar bloqueos del navegador móvil)
+            }
+        });
+
+        // Mapeo de botones táctiles a los controles de JSNES (Jugador 1)
+        const BUTTONS = {
+            'btn-up': jsnes.Controller.BUTTON_UP,
+            'btn-down': jsnes.Controller.BUTTON_DOWN,
+            'btn-left': jsnes.Controller.BUTTON_LEFT,
+            'btn-right': jsnes.Controller.BUTTON_RIGHT,
+            'btn-a': jsnes.Controller.BUTTON_A,
+            'btn-b': jsnes.Controller.BUTTON_B,
+            'btn-select': jsnes.Controller.BUTTON_SELECT,
+            'btn-start': jsnes.Controller.BUTTON_START
+        };
+
+        // Escuchar eventos táctiles en pantallas móviles
+        Object.keys(BUTTONS).forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    nes.buttonDown(1, BUTTONS[id]);
+                });
+                el.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    nes.buttonUp(1, BUTTONS[id]);
+                });
+            }
+        });
+
+        // Cargar automáticamente el juego de forma binaria
+        fetch(ROM_FILE)
+            .then(response => response.arrayBuffer())
+            .then(buffer => {
+                const romData = new Uint8Array(buffer);
+                let binaryString = "";
+                for (let i = 0; i < romData.length; i++) {
+                    binaryString += String.fromCharCode(romData[i]);
+                }
+                nes.loadROM(binaryString);
+
+                // Iniciar el loop del juego a 60 FPS
+                setInterval(nes.frame, 1000 / 60);
+            })
+            .catch(err => console.error("Error al cargar la ROM:", err));
+    </script>
+</body>
 </html>
